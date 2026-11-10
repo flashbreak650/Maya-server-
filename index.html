@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WAGuard — Admin Console</title>
+<meta name="description" content="WhatsApp Group Bot and Admin Console with Baileys integration, Pairing Code generator, QR connection, AI moderation, Badword filter, and automated warning/kick system." />
+<meta property="og:title" content="WAGuard — Admin Console" />
+<meta property="og:description" content="WhatsApp Group Bot and Admin Console with Baileys integration, Pairing Code generator, QR connection, AI moderation, Badword filter, and automated warning/kick system." />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary_large_image" />
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Hind+Siliguri:wght@400;500;600;700&display=swap');
+:root{
+ --green:#087f55;--green2:#10a36c;--mint:#e9f7ef;
+ --bg:#f5f7f6;--white:#fff;--ink:#1c3027;
+ --muted:#84938a;--line:#e9efeb;--red:#d94e50;
+ --shadow:0 5px 25px rgba(23,52,37,.045);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Inter,'Hind Siliguri',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
+button,input,textarea,select{font:inherit}
+button{cursor:pointer}
+.shell{min-height:100vh}
+.header{height:70px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 25px;position:sticky;top:0;z-index:20}
+.brand{display:flex;align-items:center;gap:11px}
+.brandmark{height:40px;width:40px;border-radius:13px;background:linear-gradient(145deg,#13b47a,#08734d);color:white;display:grid;place-items:center;box-shadow:0 5px 13px #087f5525}
+.brandmark svg{width:23px}
+.brandname{font-size:20px;font-weight:800;letter-spacing:-.8px}
+.brandname span{color:var(--green)}
+.header-right{display:flex;align-items:center;gap:12px}
+.iconbutton{height:38px;width:38px;border:1px solid var(--line);border-radius:11px;background:white;color:#64766b;display:grid;place-items:center;transition:.2s}
+.iconbutton:active{transform:scale(.92)}
+.iconbutton svg{width:17px}
+.avatar{height:37px;width:37px;border-radius:50%;background:#e5f4eb;color:var(--green);display:grid;place-items:center;font-weight:800}
+.layout{display:flex;max-width:1500px;margin:auto;min-height:calc(100vh - 70px)}
+.sidebar{width:245px;flex-shrink:0;background:#fff;border-right:1px solid var(--line);padding:22px 14px;display:flex;flex-direction:column}
+.side-label{font-size:10px;font-weight:800;letter-spacing:1.2px;color:#a4afa8;padding:13px 12px}
+.nav{border:0;background:transparent;width:100%;display:flex;align-items:center;gap:12px;text-align:left;padding:12px;border-radius:11px;color:#718077;font-size:12px;font-weight:600;margin-bottom:4px;transition:.2s}
+.nav svg{width:18px;height:18px}
+.nav:hover{background:#f3f8f5;color:var(--green)}
+.nav.active{background:var(--mint);color:var(--green);font-weight:750}
+.side-bottom{margin-top:auto;padding:15px;background:#f2f8f4;border-radius:15px}
+.side-bottom svg{color:var(--green);width:22px}
+.side-bottom strong{display:block;font-size:12px;margin:9px 0 5px}
+.side-bottom p{font-size:10px;color:var(--muted);line-height:1.7}
+.main{padding:28px;flex:1;min-width:0;max-width:1200px}
+.page{display:none;animation:appear .2s ease}
+.page.active{display:block}
+@keyframes appear{from{opacity:.4;transform:translateY(4px)}to{opacity:1;transform:none}}
+.page-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:24px}
+.page-head h1{font-size:24px;font-weight:800;letter-spacing:-.7px}
+.page-head p{font-size:12px;color:var(--muted);margin-top:6px}
+
+/* বাটন ও লোডিং এনিমেশন */
+.btn{border:0;border-radius:10px;padding:11px 14px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:all .2s ease;position:relative}
+.btn svg{width:15px;height:15px}
+.btn:active{transform:scale(.96)}
+.btn.is-loading{pointer-events:none;opacity:.85}
+.btn.is-loading .btn-icon-holder{display:none}
+.btn .spinner{display:none;width:15px;height:15px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite}
+.btn.is-loading .spinner{display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.primary{background:var(--green);color:white}
+.primary:hover{background:#066c49}
+.soft{background:var(--mint);color:var(--green)}
+.outline{background:white;border:1px solid var(--line);color:#617168}
+.danger{background:#fff0ef;color:var(--red)}
+.full{width:100%}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:19px;box-shadow:var(--shadow);min-width:0;margin-bottom:15px}
+.card-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:17px}
+.card-head h3{font-size:13px;font-weight:750}
+.card-head p{font-size:10px;color:var(--muted);margin-top:5px}
+.symbol{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;flex-shrink:0}
+.symbol svg{width:19px}
+.sg{background:#e9f7ef;color:#0b9360}
+.sb{background:#edf3ff;color:#527bd4}
+.so{background:#fff4e7;color:#dc9542}
+.sp{background:#f4efff;color:#8e65ca}
+.sr{background:#fff0ef;color:#d45d56}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:16px}
+.stat{background:white;border:1px solid var(--line);border-radius:15px;padding:17px;box-shadow:var(--shadow)}
+.stat-top{display:flex;justify-content:space-between;align-items:center}
+.stat small{font-size:10px;color:var(--muted);font-weight:600}
+.stat h2{font-size:26px;margin-top:13px;letter-spacing:-1px}
+.stat p{font-size:10px;color:#9aa69f;margin-top:5px}
+.grid2{display:grid;grid-template-columns:1.25fr 1fr;gap:15px;margin-bottom:16px}
+.hero{background:linear-gradient(120deg,#104d37,#0b9360);border-radius:17px;color:white;padding:22px;position:relative;overflow:hidden}
+.hero-content{position:relative;z-index:1}
+.hero h3{font-size:16px}
+.hero p{font-size:11px;color:#d1eadc;margin-top:8px;line-height:1.7}
+.hero-status{display:inline-flex;align-items:center;gap:7px;padding:8px 11px;border-radius:30px;background:#ffffff1b;font-size:10px;margin-top:16px}
+.dot{width:7px;height:7px;border-radius:50%;background:#c3d3ca}
+.dot.online{background:#22c55e;box-shadow:0 0 8px #22c55e}
+.dot.connecting{background:#eab308;box-shadow:0 0 8px #eab308}
+.hero-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.hero-actions .btn{background:white;color:#126746}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-group{min-width:0;margin-bottom:14px}
+.form-group label{font-size:11px;font-weight:700;display:block;margin-bottom:8px;color:#526359}
+.fieldwrap{position:relative}
+.field{width:100%;height:43px;border:1px solid #e1e9e4;border-radius:10px;padding:0 12px;outline:none;font-size:12px;color:var(--ink);background:#fff}
+.field:focus{border-color:#16a36c;box-shadow:0 0 0 3px #16a36c12}
+.field.secret{padding-right:42px}
+.reveal{position:absolute;right:7px;top:6px;width:31px;height:31px;border:0;background:transparent;color:#829087;display:grid;place-items:center}
+.reveal svg{width:16px}
+.hint{font-size:10px;color:var(--muted);line-height:1.6;margin-top:7px}
+.form-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:17px}
+.notice{padding:12px 13px;border:1px solid #f0e3c5;background:#fff9ec;color:#896b35;border-radius:11px;font-size:10px;line-height:1.7;margin-top:14px}
+.info{padding:12px 13px;background:#eef7f2;color:#4d7560;border-radius:11px;font-size:10px;line-height:1.7;margin-top:14px}
+.status-tag{font-size:10px;font-weight:700;border-radius:20px;padding:6px 9px;background:#f0f3f1;color:#849088}
+.status-tag.good{background:#e9f7ef;color:#108255}
+.empty{text-align:center;padding:24px;color:var(--muted);font-size:11px;line-height:1.7}
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:430px}
+th{text-align:left;color:#96a29a;font-size:9px;padding:12px;border-bottom:1px solid var(--line)}
+td{font-size:11px;padding:13px 12px;border-bottom:1px solid #f0f3f1}
+.mobile-nav{display:none}
+.toast{position:fixed;z-index:50;bottom:25px;left:50%;transform:translateX(-50%);background:#203d30;color:white;padding:12px 17px;border-radius:11px;font-size:11px;box-shadow:0 5px 20px #0002;display:none;max-width:90%;text-align:center}
+
+/* Live Logs Box */
+.log-box{max-height:220px;overflow-y:auto;background:#0c1913;color:#9ee5b8;border-radius:12px;padding:12px;font-family:monospace;font-size:11px;line-height:1.6;margin-top:12px}
+.log-line{border-bottom:1px solid #1a3025;padding:4px 0}
+.log-line.warn{color:#f59e0b}
+.log-line.danger{color:#f87171}
+.log-line.success{color:#34d399}
+
+@media(max-width:950px){.sidebar{width:210px}.main{padding:23px 18px}.stats{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:650px){
+ .header{height:62px;padding:0 14px}.brandname{font-size:18px}
+ .sidebar{display:none}.layout{display:block}
+ .main{padding:20px 13px 95px}
+ .page-head h1{font-size:22px}
+ .stats{gap:10px}.stat{padding:14px}.stat h2{font-size:23px}
+ .grid2{grid-template-columns:1fr;gap:12px}
+ .card{padding:15px}
+ .mobile-nav{position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:9px 2px calc(9px + env(safe-area-inset-bottom));z-index:30}
+ .mobile-nav button{flex:1;border:0;background:transparent;color:#87948c;display:flex;flex-direction:column;align-items:center;gap:5px;font-size:9px}
+ .mobile-nav svg{width:19px;height:19px}
+ .mobile-nav button.active{color:var(--green);font-weight:700}
+ .toast{bottom:85px}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+<header class="header">
+ <div class="brand">
+  <div class="brandmark"><i data-lucide="shield-check"></i></div>
+  <div class="brandname">WA<span>Guard</span></div>
+ </div>
+ <div class="header-right">
+  <button class="iconbutton" onclick="btnAction(this, refreshCurrent)" title="Refresh"><i data-lucide="refresh-cw"></i></button>
+  <div class="avatar">W</div>
+ </div>
+</header>
+
+<div class="layout">
+<aside class="sidebar">
+ <div class="side-label">MAIN MENU</div>
+ <button class="nav active" data-page="home" onclick="go('home')"><i data-lucide="layout-dashboard"></i> হোম</button>
+ <button class="nav" data-page="integrations" onclick="go('integrations')"><i data-lucide="plug"></i> API & Integrations</button>
+ <button class="nav" data-page="groups" onclick="go('groups')"><i data-lucide="users"></i> গ্রুপ</button>
+ <button class="nav" data-page="pairing" onclick="go('pairing')"><i data-lucide="smartphone"></i> কানেক্ট</button>
+ <div class="side-bottom">
+  <i data-lucide="shield-check"></i>
+  <strong>REAL BAILEYS</strong>
+  <p>👧 মায়া | 👦 মায়ান এক্টিভ</p>
+ </div>
+</aside>
+
+<main class="main">
+
+<!-- হোম পেজ -->
+<section class="page active" id="home">
+ <div class="page-head">
+  <div><h1>Overview Dashboard</h1><p>Real-time online cloud monitoring center.</p></div>
+  <button class="btn outline" onclick="btnAction(this, loadDashboard)">
+    <span class="spinner"></span>
+    <span class="btn-icon-holder"><i data-lucide="refresh-cw"></i></span>
+    <span class="btn-text">Refresh</span>
+  </button>
+ </div>
+ <div class="stats">
+  <div class="stat"><div class="stat-top"><small>Messages Checked</small><div class="symbol sg"><i data-lucide="messages-square"></i></div></div><h2 id="messages">0</h2><p>Cloud Server</p></div>
+  <div class="stat"><div class="stat-top"><small>Warnings</small><div class="symbol so"><i data-lucide="alert-triangle"></i></div></div><h2 id="warnings">0</h2><p>Database logs</p></div>
+  <div class="stat"><div class="stat-top"><small>Blocked Words</small><div class="symbol sr"><i data-lucide="ban"></i></div></div><h2 id="blocked">0</h2><p>Cloud rules</p></div>
+  <div class="stat"><div class="stat-top"><small>Groups</small><div class="symbol sb"><i data-lucide="users"></i></div></div><h2 id="groupCount">0</h2><p>Active groups</p></div>
+ </div>
+ <div class="grid2">
+  <div class="hero">
+   <div class="hero-content">
+    <h3>WhatsApp Bot Connection</h3>
+    <p>Real-time online pairing and session status (REAL BAILEYS).</p>
+    <div class="hero-status"><span class="dot" id="heroDot"></span><span id="heroStatus">Connecting server...</span></div>
+    <div class="hero-actions">
+     <button class="btn" onclick="go('pairing')"><i data-lucide="link"></i> Connect WhatsApp</button>
+     <button class="btn alt" onclick="btnAction(this, loadDashboard)">
+       <span class="spinner"></span>
+       <span class="btn-icon-holder"><i data-lucide="refresh-cw"></i></span>
+       <span class="btn-text">Sync Status</span>
+     </button>
+    </div>
+   </div>
+  </div>
+  <div class="card" style="margin-bottom:0">
+   <div class="card-head"><div><h3>Bot Personalities</h3><p>Active Bot AI Characters</p></div><div class="symbol sp"><i data-lucide="bot"></i></div></div>
+   <p class="hint">👧 মায়া এবং 👦 মায়ান বোট কনফিগারেশন রিয়েল সার্ভারে এক্টিভ আছে। গ্রুপের মেসেজে !maya বা !bot লিখলে সরাসরি উত্তর দেয়।</p>
+   <button class="btn soft full" style="margin-top:15px" onclick="go('integrations')">Configure API <i data-lucide="arrow-right"></i></button>
+  </div>
+ </div>
+
+ <!-- Live Activity Log -->
+ <div class="card">
+  <div class="card-head"><div><h3>Real-Time Activity Log</h3><p>Live messages, badword detection & automated moderation</p></div><div class="symbol sg"><i data-lucide="activity"></i></div></div>
+  <div class="log-box" id="activityLogs">
+   <div class="log-line">Server initialized. Listening for real-time WhatsApp Baileys events...</div>
+  </div>
+ </div>
+</section>
+
+<!-- API ও Integrations পেজ -->
+<section class="page" id="integrations">
+ <div class="page-head"><div><h1>API & Integrations</h1><p>Configure server endpoints and external credentials.</p></div></div>
+ 
+ <!-- Google Gemini AI -->
+ <div class="card">
+  <div class="card-head"><div><h3>Google Gemini AI (জেডমিনি এপিআই)</h3><p>AI-powered moderation and personality</p></div><div class="symbol sp"><i data-lucide="sparkles"></i></div></div>
+  <div class="form-group">
+   <label>GEMINI API KEY (এপিআই কি)</label>
+   <div class="fieldwrap">
+    <input class="field secret" id="geminiKey" type="password" placeholder="এখানে আপনার Gemini API Key দিন">
+    <button class="reveal" onclick="reveal('geminiKey',this)"><i data-lucide="eye"></i></button>
+   </div>
+  </div>
+  <div class="form-group">
+   <label>GEMINI MODEL</label>
+   <select class="field" id="geminiModel">
+    <option value="gemini-3.8-flash" selected>Gemini 3.8 Flash (Recommended & Fastest)</option>
+    <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite (High Throughput)</option>
+    <option value="gemini-4-argon">Gemini 4 Argon (Advanced Reasoning)</option>
+   </select>
+  </div>
+  <div class="form-actions">
+   <button class="btn primary" onclick="btnAction(this, () => saveConfig('gemini'))">
+     <span class="spinner"></span>
+     <span class="btn-icon-holder"><i data-lucide="save"></i></span>
+     <span class="btn-text">Save Gemini Config</span>
+   </button>
+   <button class="btn outline" onclick="btnAction(this, testAI)">
+     <span class="spinner"></span>
+     <span class="btn-icon-holder"><i data-lucide="activity"></i></span>
+     <span class="btn-text">Test AI</span>
+   </button>
+  </div>
+ </div>
+
+ <!-- Badwords & Moderation Config -->
+ <div class="card">
+  <div class="card-head"><div><h3>Badword Detection & Auto-Kick</h3><p>Automatic 3-Warning Rule & Kick System</p></div><div class="symbol sr"><i data-lucide="shield-alert"></i></div></div>
+  <div class="form-group">
+   <label>BLOCKED WORDS LIST (কমা দিয়ে আলাদা করুন)</label>
+   <input class="field" id="blockedWordsInput" placeholder="spam, scam, betting, gambling, 18+, abuse">
+  </div>
+  <div class="form-actions">
+   <button class="btn primary" onclick="btnAction(this, saveBlockedWords)">
+     <span class="spinner"></span>
+     <span class="btn-icon-holder"><i data-lucide="save"></i></span>
+     <span class="btn-text">Save Blocked Words</span>
+   </button>
+  </div>
+ </div>
+
+ <!-- WhatsApp Cloud API (Meta) -->
+ <div class="card">
+  <div class="card-head"><div><h3>WhatsApp Cloud API (Meta)</h3><p>মেটা অফিসিয়াল এপিআই ক্রেডেনশিয়াল (ঐচ্ছিক)</p></div><div class="symbol sg"><i data-lucide="message-circle"></i></div></div>
+  <p class="hint" style="margin-bottom:12px">ID কোথায় পাবেন? developers.facebook.com > WhatsApp > Getting Started</p>
+  <div class="form-group">
+   <label>ACCESS TOKEN (অ্যাক্সেস টোকেন)</label>
+   <div class="fieldwrap">
+    <input class="field secret" id="waToken" type="password" placeholder="EAAB...">
+    <button class="reveal" onclick="reveal('waToken',this)"><i data-lucide="eye"></i></button>
+   </div>
+  </div>
+  <div class="form-grid">
+   <div class="form-group"><label>PHONE ID (ফোন আইডি)</label><input class="field" id="phoneId" placeholder="Phone ID"></div>
+   <div class="form-group"><label>WABA ID (ওয়াবা আইডি)</label><input class="field" id="wabaId" placeholder="WABA ID"></div>
+  </div>
+  <div class="form-actions">
+   <button class="btn primary" onclick="btnAction(this, () => saveConfig('meta'))">
+     <span class="spinner"></span>
+     <span class="btn-icon-holder"><i data-lucide="save"></i></span>
+     <span class="btn-text">Save Meta Config</span>
+   </button>
+  </div>
+ </div>
+
+ <!-- Groq AI -->
+ <div class="card">
+  <div class="card-head"><div><h3>Groq AI (Fast Fallback)</h3><p>Lightning-fast Llama-3 fallback provider</p></div><div class="symbol so"><i data-lucide="zap"></i></div></div>
+  <div class="form-group">
+   <label>GROQ API KEY</label>
+   <div class="fieldwrap">
+    <input class="field secret" id="groqKey" type="password" placeholder="gsk_...">
+    <button class="reveal" onclick="reveal('groqKey',this)"><i data-lucide="eye"></i></button>
+   </div>
+  </div>
+  <div class="form-actions">
+   <button class="btn primary" onclick="btnAction(this, () => saveConfig('groq'))">
+     <span class="spinner"></span>
+     <span class="btn-icon-holder"><i data-lucide="save"></i></span>
+     <span class="btn-text">Save Groq Config</span>
+   </button>
+  </div>
+ </div>
+
+ <!-- OpenRouter -->
+ <div class="card">
+  <div class="card-head"><div><h3>OpenRouter (Alternative)</h3><p>Access many AI models via OpenRouter</p></div><div class="symbol sb"><i data-lucide="cpu"></i></div></div>
+  <div class="form-group">
+   <label>OPENROUTER API KEY</label>
+   <div class="fieldwrap">
+    <input class="field secret" id="openrouterKey" type="password" placeholder="sk-or-v1-...">
+    <button class="reveal" onclick="reveal('openrouterKey',this)"><i data-lucide="eye"></i></button>
+   </div>
+  </div>
+  <div class="form-actions">
+   <button class="btn primary" onclick="btnAction(this, () => saveConfig('openrouter'))">
+     <span class="spinner"></span>
+     <span class="btn-icon-holder"><i data-lucide="save"></i></span>
+     <span class="btn-text">Save OpenRouter Config</span>
+   </button>
+  </div>
+ </div>
+
+ <!-- Supabase Config -->
+ <div class="card">
+  <div class="card-head"><div><h3>Supabase (Free Persistence)</h3><p>Sync logs and stats to a persistent database</p></div><div class="symbol sr"><i data-lucide="database"></i></div></div>
+  <div class="form-group">
+   <label>SUPABASE URL</label>
+   <input class="field" id="supabaseUrl" placeholder="https://xyz.supabase.co">
+  </div>
+  <div class="form-group">
+   <label>SUPABASE ANON KEY</label>
+   <div class="fieldwrap">
+    <input class="field secret" id="supabaseKey" type="password" placeholder="eyJhbGci...">
+    <button class="reveal" onclick="reveal('supabaseKey',this)"><i data-lucide="eye"></i></button>
+   </div>
+  </div>
+  <div class="form-actions">
+   <button class="btn primary" onclick="btnAction(this, saveSupabaseConfig)">
+     <span class="spinner"></span>
+     <span class="btn-icon-holder"><i data-lucide="save"></i></span>
+     <span class="btn-text">Save Supabase Config</span>
+   </button>
+  </div>
+ </div>
+
+ <!-- Baileys Server URL -->
+ <div class="card">
+  <div class="card-head"><div><h3>Baileys Socket Server URL</h3><p>Connect to your live backend server</p></div><div class="symbol sb"><i data-lucide="server"></i></div></div>
+  <div class="form-group">
+   <label>Custom Baileys Server URL (Optional)</label>
+   <input class="field" id="baileysUrl" placeholder="https://your-server.com">
+   <p class="hint">ফাঁকা রাখলে বিল্ট-ইন রিয়েল সার্ভার ব্যবহৃত হবে</p>
+  </div>
+  <div class="form-actions">
+   <button class="btn primary" onclick="btnAction(this, saveBaileysUrl)">
+     <span class="spinner"></span>
+     <span class="btn-icon-holder"><i data-lucide="save"></i></span>
+     <span class="btn-text">Save URL</span>
+   </button>
+   <button class="btn outline" onclick="btnAction(this, resetBaileysUrl)">
+     <span class="spinner"></span>
+     <span class="btn-icon-holder"><i data-lucide="rotate-ccw"></i></span>
+     <span class="btn-text">Reset to Default</span>
+   </button>
+  </div>
+ </div>
+</section>
+
+<!-- কানেক্ট/পেয়ারিং পেজ -->
+<section class="page" id="pairing">
+ <div class="page-head"><div><h1>WhatsApp Connect</h1><p>Link a device using real pairing code from backend server (REAL BAILEYS).</p></div></div>
+ <div class="card" style="max-width:570px;margin:auto;text-align:center">
+  <div class="symbol sg" style="margin:5px auto 15px;width:60px;height:60px"><i data-lucide="smartphone" style="width:28px;height:28px"></i></div>
+  <h3 style="font-size:17px">Link WhatsApp Device</h3>
+  <p class="hint">Enter your phone number with country code (e.g. 88017XXXXXXXX).</p>
+  <div class="form-group" style="text-align:left;margin-top:20px"><label>Phone Number</label><input class="field" id="pairPhone" placeholder="8801XXXXXXXXX" inputmode="numeric"></div>
+  
+  <button class="btn primary full" style="margin-top:14px" onclick="btnAction(this, getPairing)">
+    <span class="spinner"></span>
+    <span class="btn-icon-holder"><i data-lucide="key-round"></i></span>
+    <span class="btn-text">Generate Real Pairing Code</span>
+  </button>
+  
+  <div id="pairResult" style="display:none" class="info">
+   <div style="font-size:10px">YOUR REAL WHATSAPP PAIRING CODE</div>
+   <h2 id="pairCode" style="letter-spacing:7px;font-size:29px;margin:12px"></h2>
+   <button class="btn soft" onclick="btnAction(this, copyPair)">
+     <span class="spinner"></span>
+     <span class="btn-icon-holder"><i data-lucide="copy"></i></span>
+     <span class="btn-text">Copy Code</span>
+   </button>
+  </div>
+
+  <!-- QR Code display container -->
+  <div id="qrContainer" style="display:none;margin-top:20px" class="card">
+   <h4 style="font-size:13px;margin-bottom:10px">অথবা QR কোড স্ক্যান করুন</h4>
+   <img id="qrImage" style="max-width:220px;margin:auto;border-radius:10px;border:1px solid #e1e9e4" alt="QR Code" />
+   <p class="hint">WhatsApp > Linked Devices > Link a Device > Scan QR Code</p>
+  </div>
+
+  <div id="sessionStateBox" style="margin-top:15px;display:none" class="info">
+   <p><b>কানেক্টেড ইউজার:</b> <span id="connectedUser"></span></p>
+   <button class="btn danger" style="margin-top:8px" onclick="btnAction(this, disconnectSession)">
+    <i data-lucide="log-out"></i> ডিসকানেক্ট করুন
+   </button>
+  </div>
+
+  <div class="notice" style="text-align:left">আপনার ব্যাকএন্ড Baileys Multi-File Auth ব্যবহার করে, যার ফলে সার্ভার রিস্টার্ট হলেও সেশন চিরস্থায়ী থাকবে।</div>
+ </div>
+</section>
+
+<!-- গ্রুপ পেজ -->
+<section class="page" id="groups">
+ <div class="page-head"><div><h1>Group Management</h1><p>View cloud connected groups.</p></div>
+ <button class="btn primary" onclick="btnAction(this, loadGroups)">
+   <span class="spinner"></span>
+   <span class="btn-icon-holder"><i data-lucide="refresh-cw"></i></span>
+   <span class="btn-text">Refresh</span>
+ </button></div>
+ <div class="card">
+  <div class="card-head"><div><h3>Connected Groups</h3><p>Group details from cloud backend</p></div><div class="symbol sb"><i data-lucide="users"></i></div></div>
+  <div class="tablewrap"><table><thead><tr><th>GROUP NAME</th><th>GROUP ID</th><th>MEMBERS</th><th>STATUS</th></tr></thead><tbody id="groupList"><tr><td colspan="4" class="empty">No groups loaded.</td></tr></tbody></table></div>
+ </div>
+</section>
+
+</main>
+</div>
+
+<!-- মোবাইল বটম নেভিগেশন -->
+<nav class="mobile-nav">
+ <button class="active" data-page="home" onclick="go('home')"><i data-lucide="layout-dashboard"></i>হোম</button>
+ <button data-page="integrations" onclick="go('integrations')"><i data-lucide="plug"></i>API</button>
+ <button data-page="pairing" onclick="go('pairing')"><i data-lucide="smartphone"></i>কানেক্ট</button>
+ <button data-page="groups" onclick="go('groups')"><i data-lucide="users"></i>গ্রুপ</button>
+</nav>
+<div class="toast" id="toast"></div>
+
+<script>
+lucide.createIcons();
+
+let API = localStorage.getItem('wg_server') || '';
+let pairCode = '';
+let socket = null;
+
+// লোকালস্টোরেজ ডাটা পপুলেট করা
+document.getElementById('geminiKey').value = localStorage.getItem('wg_gemini_key') || '';
+document.getElementById('geminiModel').value = localStorage.getItem('wg_gemini_model') || 'gemini-3.8-flash';
+document.getElementById('waToken').value = localStorage.getItem('wg_watoken') || '';
+document.getElementById('phoneId').value = localStorage.getItem('wg_phoneid') || '';
+document.getElementById('wabaId').value = localStorage.getItem('wg_wabaid') || '';
+document.getElementById('groqKey').value = localStorage.getItem('wg_groq_key') || '';
+document.getElementById('openrouterKey').value = localStorage.getItem('wg_openrouter_key') || '';
+document.getElementById('supabaseUrl').value = localStorage.getItem('wg_supabase_url') || '';
+document.getElementById('supabaseKey').value = localStorage.getItem('wg_supabase_key') || '';
+document.getElementById('baileysUrl').value = API;
+
+function toast(s){
+ const t=document.getElementById('toast');
+ t.textContent=s; t.style.display='block';
+ clearTimeout(window.toastTimer);
+ window.toastTimer=setTimeout(()=>t.style.display='none',3000);
+}
+
+// ইউনিভার্সাল বাটন ক্লিক ও লোডিং এনিমেশন মেকানিজম
+async function btnAction(btn, asyncFn) {
+ if(!btn) return;
+ btn.classList.add('is-loading');
+ try {
+  await asyncFn();
+ } catch(err) {
+  console.error(err);
+ } finally {
+  setTimeout(() => btn.classList.remove('is-loading'), 300);
+ }
+}
+
+function go(id){
+ const target=document.getElementById(id);
+ if(!target){toast('Page not found');return}
+ document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+ target.classList.add('active');
+ document.querySelectorAll('[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===id));
+ window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function refreshCurrent(){
+ const activePage = document.querySelector('.page.active')?.id || 'home';
+ if(activePage === 'home') loadDashboard();
+ else if(activePage === 'groups') loadGroups();
+ else toast('Refreshed');
+}
+
+function reveal(id,button){
+ const input=document.getElementById(id);
+ input.type=input.type==='password'?'text':'password';
+ button.innerHTML=input.type==='password'?'<i data-lucide="eye"></i>':'<i data-lucide="eye-off"></i>';
+ lucide.createIcons();
+}
+
+// সার্ভার এপিআই কল ফাংশন
+async function call(path, method='GET', body){
+ const targetAPI = API || window.location.origin;
+ const options = { method, headers: { 'Content-Type': 'application/json' } };
+ if(body!==undefined) options.body = JSON.stringify(body);
+ 
+ const res = await fetch(targetAPI + path, options);
+ if(!res.ok) throw Error('Server error: ' + res.status);
+ return await res.json();
+}
+
+async function saveConfig(type){
+ if(type==='gemini'){
+  const key = document.getElementById('geminiKey').value;
+  const model = document.getElementById('geminiModel').value;
+  localStorage.setItem('wg_gemini_key', key);
+  localStorage.setItem('wg_gemini_model', model);
+  await call('/api/config', 'POST', { geminiKey: key, geminiModel: model });
+  toast('Gemini Config Saved to Server!');
+ } else if(type==='meta'){
+  const waToken = document.getElementById('waToken').value;
+  const phoneId = document.getElementById('phoneId').value;
+  const wabaId = document.getElementById('wabaId').value;
+  localStorage.setItem('wg_watoken', waToken);
+  localStorage.setItem('wg_phoneid', phoneId);
+  localStorage.setItem('wg_wabaid', wabaId);
+  await call('/api/config', 'POST', { metaToken: waToken, phoneId, wabaId });
+  toast('Meta Config Saved!');
+ } else if(type==='groq'){
+  const groqKey = document.getElementById('groqKey').value;
+  localStorage.setItem('wg_groq_key', groqKey);
+  await call('/api/config', 'POST', { groqKey });
+  toast('Groq Config Saved!');
+ } else if(type==='openrouter'){
+  const openrouterKey = document.getElementById('openrouterKey').value;
+  localStorage.setItem('wg_openrouter_key', openrouterKey);
+  await call('/api/config', 'POST', { openrouterKey });
+  toast('OpenRouter Config Saved!');
+ }
+}
+
+async function saveBlockedWords(){
+ const val = document.getElementById('blockedWordsInput').value;
+ const words = val.split(',').map(s => s.trim()).filter(Boolean);
+ await call('/api/moderation/words', 'POST', { words });
+ document.getElementById('blocked').textContent = words.length;
+ toast('Blocked words saved!');
+}
+
+async function saveSupabaseConfig(){
+ const url = document.getElementById('supabaseUrl').value.trim();
+ const key = document.getElementById('supabaseKey').value.trim();
+ if(!url || !key){toast('Supabase URL এবং Key প্রদান করুন'); return;}
+ localStorage.setItem('wg_supabase_url', url);
+ localStorage.setItem('wg_supabase_key', key);
+ await call('/api/config', 'POST', { supabaseUrl: url, supabaseKey: key });
+ toast('Supabase Database Saved Successfully!');
+}
+
+async function saveBaileysUrl(){
+ const val = document.getElementById('baileysUrl').value.trim().replace(/\/+$/,'');
+ if(val){
+  try{new URL(val)}catch(e){toast('সঠিক Server URL দিন');return}
+  API = val;
+  localStorage.setItem('wg_server', API);
+  toast('Baileys Server URL Saved!');
+  initSocket();
+ } else {
+  localStorage.removeItem('wg_server');
+  API = '';
+  toast('বিল্ট-ইন রিয়েল সার্ভার মোড সক্রিয় করা হয়েছে');
+  initSocket();
+ }
+}
+
+async function resetBaileysUrl(){
+ localStorage.removeItem('wg_server');
+ API = '';
+ document.getElementById('baileysUrl').value = '';
+ toast('Baileys URL Reset Done');
+ initSocket();
+}
+
+async function testAI(){
+ try{
+  const res = await call('/api/ai/test', 'POST', {
+   key: document.getElementById('geminiKey').value,
+   model: document.getElementById('geminiModel').value
+  });
+  if(res.success){
+   toast('AI Test Passed: ' + (res.text || 'Connected'));
+  } else {
+   toast('AI Test Failed: ' + res.error);
+  }
+ }catch(e){
+  toast('Error testing AI: ' + e.message);
+ }
+}
+
+async function loadDashboard(){
+ try{
+  const d = await call('/api/dashboard');
+  const isOnline = d.connection?.online;
+  const heroDot = document.getElementById('heroDot');
+  const heroStatus = document.getElementById('heroStatus');
+  
+  if (isOnline) {
+   heroDot.className = 'dot online';
+   heroStatus.textContent = `Online (${d.connection.user?.name || d.connection.user?.id || 'Connected'})`;
+   document.getElementById('sessionStateBox').style.display = 'block';
+   document.getElementById('connectedUser').textContent = d.connection.user?.id || 'Active WhatsApp Device';
+  } else if (d.connection?.status === 'connecting') {
+   heroDot.className = 'dot connecting';
+   heroStatus.textContent = 'Connecting WhatsApp...';
+  } else {
+   heroDot.className = 'dot';
+   heroStatus.textContent = 'Disconnected (Ready to Link)';
+   document.getElementById('sessionStateBox').style.display = 'none';
+  }
+
+  document.getElementById('messages').textContent = d.overview?.messagesChecked ?? '0';
+  document.getElementById('warnings').textContent = d.overview?.warnings ?? '0';
+  document.getElementById('blocked').textContent = d.overview?.blockedWords ?? '0';
+  document.getElementById('groupCount').textContent = d.overview?.groups ?? '0';
+ }catch(e){
+  document.getElementById('heroStatus').textContent = 'Connecting Server...';
+ }
+
+ // Load words
+ try{
+  const w = await call('/api/moderation/words');
+  if(w.words) {
+   document.getElementById('blockedWordsInput').value = w.words.join(', ');
+   document.getElementById('blocked').textContent = w.words.length;
+  }
+ }catch(e){}
+
+ // Load logs
+ try{
+  const l = await call('/api/logs');
+  if(l.logs && l.logs.length) {
+   renderLogs(l.logs);
+  }
+ }catch(e){}
+}
+
+function renderLogs(logs){
+ const box = document.getElementById('activityLogs');
+ box.innerHTML = logs.map(item => {
+  let cls = '';
+  if(item.type === 'warning') cls = 'warn';
+  else if(item.type === 'danger' || item.type === 'error') cls = 'danger';
+  else if(item.type === 'success') cls = 'success';
+  return `<div class="log-line ${cls}">[${item.time}] ${item.message}</div>`;
+ }).join('');
+}
+
+// রিয়েল পেয়ারিং কোড জেনারেটর (Baileys Protocol)
+async function getPairing(){
+ const phone = document.getElementById('pairPhone').value.replace(/\D/g,'');
+ if(phone.length < 10){toast('সঠিক কান্ট্রি কোড সহ ফোন নম্বর দিন (যেমন: 8801XXXXXXXXX)'); return;}
+
+ toast('রিয়েল WhatsApp Baileys Pairing Code অনুরোধ করা হচ্ছে...');
+ 
+ try{
+  const d = await call('/api/whatsapp/pair', 'POST', { phoneNumber: phone });
+  if(d.pairingCode) {
+   pairCode = d.pairingCode;
+   document.getElementById('pairCode').textContent = pairCode;
+   document.getElementById('pairResult').style.display = 'block';
+   toast('রিয়েল পেয়ারিং কোড সার্ভার থেকে গৃহীত হয়েছে!');
+  } else {
+   toast('সার্ভার থেকে কোড পেতে সমস্যা হয়েছে');
+  }
+ } catch(e){
+  toast('Error: ' + e.message);
+ }
+}
+
+async function copyPair(){
+ if(!pairCode) return;
+ try {
+  await navigator.clipboard.writeText(pairCode);
+  toast('Code Copied!');
+ } catch(e) {
+  toast('Copy failed');
+ }
+}
+
+async function disconnectSession(){
+ try{
+  await call('/api/whatsapp/disconnect', 'POST');
+  toast('Session Disconnected');
+  loadDashboard();
+ }catch(e){
+  toast('Error disconnecting');
+ }
+}
+
+async function loadGroups(){
+ try{
+  const d = await call('/api/groups');
+  const groups = d.groups || [];
+  document.getElementById('groupCount').textContent = groups.length;
+  if(groups.length){
+   document.getElementById('groupList').innerHTML = groups.map(g=>`
+    <tr>
+     <td><b>${g.name || g.subject || 'WhatsApp Group'}</b></td>
+     <td><code>${g.id || '-'}</code></td>
+     <td>${Number(g.participants || 0)}</td>
+     <td><span class="status-tag good">Active</span></td>
+    </tr>
+   `).join('');
+   toast(`Loaded ${groups.length} Groups`);
+  } else {
+   document.getElementById('groupList').innerHTML = '<tr><td colspan="4" class="empty">কোনো WhatsApp গ্রুপ পাওয়া যায়নি বা হোয়াটসঅ্যাপ এখনও কানেক্টেড নয়</td></tr>';
+  }
+ } catch(e){
+  toast('Failed to load groups: ' + e.message);
+ }
+}
+
+// Real-Time Socket.IO Client Setup
+function initSocket(){
+ if(socket) {
+  try { socket.disconnect(); } catch(e){}
+ }
+
+ const socketTarget = API || window.location.origin;
+ if(typeof io !== 'undefined') {
+  socket = io(socketTarget);
+
+  socket.on('connect', () => {
+   console.log('Socket.IO connected to backend');
+  });
+
+  socket.on('connection_status', (state) => {
+   loadDashboard();
+   if(state.qr) {
+    document.getElementById('qrContainer').style.display = 'block';
+    document.getElementById('qrImage').src = state.qr;
+   } else {
+    document.getElementById('qrContainer').style.display = 'none';
+   }
+   if(state.pairingCode) {
+    pairCode = state.pairingCode;
+    document.getElementById('pairCode').textContent = pairCode;
+    document.getElementById('pairResult').style.display = 'block';
+   }
+  });
+
+  socket.on('qr_code', (data) => {
+   if(data.qr) {
+    document.getElementById('qrContainer').style.display = 'block';
+    document.getElementById('qrImage').src = data.qr;
+   }
+  });
+
+  socket.on('pairing_code', (data) => {
+   if(data.pairingCode) {
+    pairCode = data.pairingCode;
+    document.getElementById('pairCode').textContent = pairCode;
+    document.getElementById('pairResult').style.display = 'block';
+    toast('নতুন পেয়ারিং কোড এসেছে!');
+   }
+  });
+
+  socket.on('activity_log', (log) => {
+   const box = document.getElementById('activityLogs');
+   let cls = '';
+   if(log.type === 'warning') cls = 'warn';
+   else if(log.type === 'danger' || log.type === 'error') cls = 'danger';
+   else if(log.type === 'success') cls = 'success';
+   
+   const div = document.createElement('div');
+   div.className = `log-line ${cls}`;
+   div.textContent = `[${log.time}] ${log.message}`;
+   box.prepend(div);
+  });
+
+  socket.on('stats_update', (stats) => {
+   if(stats.messagesChecked !== undefined) document.getElementById('messages').textContent = stats.messagesChecked;
+   if(stats.warnings !== undefined) document.getElementById('warnings').textContent = stats.warnings;
+   if(stats.blockedWords !== undefined) document.getElementById('blocked').textContent = stats.blockedWords;
+   if(stats.groups !== undefined) document.getElementById('groupCount').textContent = stats.groups;
+  });
+
+  socket.on('groups_updated', (groups) => {
+   if(document.querySelector('.page.active')?.id === 'groups') {
+    loadGroups();
+   }
+  });
+ }
+}
+
+window.onload = () => {
+ initSocket();
+ loadDashboard();
+};
+</script>
+</body>
+</html>
